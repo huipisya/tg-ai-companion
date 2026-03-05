@@ -3,6 +3,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from services.user_service import get_all_scenarios, get_user, create_conversation
 from keyboards.menus import scenarios_kb
+from handlers.chat import ChatState
 
 router = Router()
 
@@ -58,7 +59,7 @@ async def start_scenario(callback: CallbackQuery, state: FSMContext) -> None:
         return
 
     conv_id = await create_conversation(tg_id, scenario_id)
-    await state.set_state("in_chat")
+    await state.set_state(ChatState.in_chat)
     await state.update_data(
         conversation_id=conv_id,
         scenario_name=scenario["name"],
