@@ -14,12 +14,17 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS scenarios (
     id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL,
     system_prompt TEXT NOT NULL,
     is_premium BOOLEAN NOT NULL DEFAULT FALSE,
     emoji TEXT NOT NULL DEFAULT '✨',
     sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+-- Remove duplicate scenarios if any
+DELETE FROM scenarios WHERE id NOT IN (
+    SELECT MIN(id) FROM scenarios GROUP BY name
 );
 
 CREATE TABLE IF NOT EXISTS conversations (
