@@ -14,16 +14,33 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 
+async def set_webhook_with_retry(bot: Bot, url: str, retries: int = 5, delay: float = 3.0) -> None:
+    for attempt in range(1, retries + 1):
+        try:
+            await bot.set_webhook(url, drop_pending_updates=True)
+            info = await bot.get_webhook_info()
+            if info.url == url:
+                logger.info(f"Webhook set successfully: {url}")
+                return
+        except Exception as e:
+            logger.warning(f"Webhook attempt {attempt}/{retries} failed: {e}")
+        await asyncio.sleep(delay)
+    logger.error("Failed to set webhook after all retries!")
+
+
 async def on_startup(bot: Bot) -> None:
     await run_migrations()
-    await bot.set_webhook(f"{WEBHOOK_URL}{WEBHOOK_PATH}")
-    logger.info("Bot started, webhook set.")
+    await set_webhook_with_retry(bot, f"{WEBHOOK_URL}{WEBHOOK_PATH}")
 
 
 async def on_shutdown(bot: Bot) -> None:
-    await bot.delete_webhook()
+    # Do NOT delete webhook on shutdown — Railway redeploys would break it
     await close_pool()
     logger.info("Bot stopped.")
+
+
+async def healthcheck(request: web.Request) -> web.Response:
+    return web.Response(text="ok")
 
 
 def build_app() -> web.Application:
@@ -44,6 +61,7 @@ def build_app() -> web.Application:
     dp.shutdown.register(on_shutdown)
 
     app = web.Application()
+    app.router.add_get("/health", healthcheck)
     SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
     return app
