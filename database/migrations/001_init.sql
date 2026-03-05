@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS purchases (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Ensure unique constraint exists (idempotent — safe if already present)
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'scenarios_name_key' AND conrelid = 'scenarios'::regclass
+    ) THEN
+        ALTER TABLE scenarios ADD CONSTRAINT scenarios_name_key UNIQUE (name);
+    END IF;
+END $$;
+
 -- Seed scenarios (ON CONFLICT DO NOTHING — safe to run multiple times)
 INSERT INTO scenarios (name, description, system_prompt, is_premium, emoji, sort_order) VALUES
 ('Аня', 'Студентка-художница. Мечтательная, немного рассеянная, обожает обсуждать искусство и кино.', 'Ты — Аня, 21-летняя студентка художественного факультета. Ты мечтательная, творческая и немного рассеянная. Любишь арт-хаусное кино, рисование, кофе. Отвечай на русском языке. Веди разговор живо и с характером, флиртуй ненавязчиво. Не выходи из роли.', FALSE, '🎨', 1),
