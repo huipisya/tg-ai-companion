@@ -85,7 +85,7 @@ def chat_kb(conversation_id: int) -> InlineKeyboardMarkup:
 
 def chat_reply_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="🔄 Изменить режим")]],
+        keyboard=[[KeyboardButton(text="🏠 Главное меню")]],
         resize_keyboard=True,
     )
 

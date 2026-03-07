@@ -15,19 +15,13 @@ class ChatState(StatesGroup):
     in_chat = State()
 
 
-@router.message(ChatState.in_chat, F.text == "🔄 Изменить режим")
-async def change_mode(message: Message, state: FSMContext) -> None:
+@router.message(ChatState.in_chat, F.text == "🏠 Главное меню")
+async def go_to_main_menu(message: Message, state: FSMContext) -> None:
     await state.clear()
-    await message.answer("Выбери нового персонажа 👇", reply_markup=remove_reply_kb())
-    from services.user_service import get_all_scenarios, get_user
-    from keyboards.menus import scenarios_kb
-    user = await get_user(message.from_user.id)
-    scenarios = await get_all_scenarios()
-    await message.answer(
-        "💫 <b>Сценарии</b>\n\nВыбери персонажа, с которым хочешь поговорить.\n🔒 — доступно только с Premium.",
-        reply_markup=scenarios_kb(scenarios, is_premium=user["is_premium"]),
-        parse_mode="HTML",
-    )
+    from handlers.start import WELCOME_TEXT
+    # First message removes the reply keyboard, second shows inline main menu
+    await message.answer("👋", reply_markup=remove_reply_kb())
+    await message.answer(WELCOME_TEXT, reply_markup=main_menu_kb())
 
 
 @router.message(ChatState.in_chat, F.text)
