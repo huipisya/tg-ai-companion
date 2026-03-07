@@ -6,7 +6,7 @@ from services.groq_client import chat_completion
 from services.user_service import (
     deduct_message, save_message, get_conversation_history
 )
-from keyboards.menus import chat_kb, main_menu_kb, chat_reply_kb, remove_reply_kb
+from keyboards.menus import chat_kb, main_menu_kb
 
 router = Router()
 
@@ -19,8 +19,6 @@ class ChatState(StatesGroup):
 async def go_to_main_menu(message: Message, state: FSMContext) -> None:
     await state.clear()
     from handlers.start import WELCOME_TEXT
-    # First message removes the reply keyboard, second shows inline main menu
-    await message.answer("👋", reply_markup=remove_reply_kb())
     await message.answer(WELCOME_TEXT, reply_markup=main_menu_kb())
 
 
@@ -70,7 +68,6 @@ async def handle_chat_message(message: Message, state: FSMContext) -> None:
 @router.callback_query(lambda c: c.data.startswith("chat:end:"))
 async def end_chat(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.answer("👋", reply_markup=remove_reply_kb())
     await callback.message.edit_text(
         "Диалог завершён 👋\n\nВозвращайся, когда захочешь поговорить.",
         reply_markup=main_menu_kb(),

@@ -1,7 +1,7 @@
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
-from keyboards.menus import main_menu_kb
+from keyboards.menus import main_menu_kb, chat_reply_kb
 
 router = Router()
 
@@ -16,6 +16,7 @@ WELCOME_TEXT = (
 
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
+    await message.answer("👋", reply_markup=chat_reply_kb())
     await message.answer(WELCOME_TEXT, reply_markup=main_menu_kb())
 
 
