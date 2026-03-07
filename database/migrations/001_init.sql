@@ -46,8 +46,14 @@ CREATE TABLE IF NOT EXISTS purchases (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Ensure UNIQUE constraint exists on scenarios.name (idempotent for existing DBs)
+-- Deduplicate scenarios by name (keep lowest id), then ensure UNIQUE constraint
 DO $$ BEGIN
+    -- Remove duplicate scenario rows, keeping only the one with the smallest id
+    DELETE FROM scenarios s
+    WHERE s.id > (
+        SELECT MIN(s2.id) FROM scenarios s2 WHERE s2.name = s.name
+    );
+
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conname = 'scenarios_name_key' AND conrelid = 'scenarios'::regclass
