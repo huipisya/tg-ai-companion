@@ -33,6 +33,10 @@ async def show_referral(callback: CallbackQuery) -> None:
     tg_id = callback.from_user.id
     stats = await get_referral_stats(tg_id)
 
+    if not stats:
+        await callback.answer("Не удалось загрузить данные. Попробуй позже.", show_alert=True)
+        return
+
     bot_username = (await callback.bot.get_me()).username
     ref_link = f"https://t.me/{bot_username}?start={stats['ref_code']}"
 

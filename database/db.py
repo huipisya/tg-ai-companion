@@ -1,5 +1,9 @@
+from pathlib import Path
+
 import asyncpg
 from config import DATABASE_URL
+
+_MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 _pool: asyncpg.Pool | None = None
 
@@ -20,7 +24,7 @@ async def close_pool() -> None:
 
 async def run_migrations() -> None:
     pool = await get_pool()
-    with open("database/migrations/001_init.sql") as f:
+    with open(_MIGRATIONS_DIR / "001_init.sql") as f:
         sql = f.read()
     async with pool.acquire() as conn:
         await conn.execute(sql)

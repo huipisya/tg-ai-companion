@@ -1,6 +1,15 @@
 import secrets
+from datetime import timedelta
+
 import asyncpg
 from database.db import get_pool
+
+PREMIUM_DURATIONS = {
+    "premium_1w": timedelta(weeks=1),
+    "premium_2w": timedelta(weeks=2),
+    "premium_1m": timedelta(days=30),
+    "premium_3m": timedelta(days=90),
+}
 
 
 async def get_or_create_user(tg_id: int, username: str | None, ref_code_used: str | None = None) -> asyncpg.Record:
@@ -151,6 +160,18 @@ async def record_purchase(tg_id: int, purchase_type: str, messages_added: int, s
             "UPDATE users SET balance = balance + $1 WHERE tg_id = $2",
             messages_added, tg_id,
         )
+        # Activate premium if this is a premium purchase
+        duration = PREMIUM_DURATIONS.get(purchase_type)
+        if duration:
+            await conn.execute(
+                """
+                UPDATE users
+                SET is_premium = TRUE,
+                    premium_until = GREATEST(COALESCE(premium_until, NOW()), NOW()) + $1
+                WHERE tg_id = $2
+                """,
+                duration, tg_id,
+            )
         # Give referrer bonus (50% of messages added)
         if user["referred_by"]:
             bonus = messages_added // 2

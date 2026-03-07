@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 async def set_webhook_with_retry(bot: Bot, url: str, retries: int = 5, delay: float = 3.0) -> None:
     for attempt in range(1, retries + 1):
         try:
-            await bot.set_webhook(url, drop_pending_updates=True)
+            await bot.set_webhook(
+                url,
+                allowed_updates=["message", "callback_query", "pre_checkout_query"],
+            )
             info = await bot.get_webhook_info()
             if info.url == url:
                 logger.info(f"Webhook set successfully: {url}")
@@ -30,7 +33,6 @@ async def set_webhook_with_retry(bot: Bot, url: str, retries: int = 5, delay: fl
 
 async def on_startup(bot: Bot) -> None:
     await run_migrations()
-    await set_webhook_with_retry(bot, f"{WEBHOOK_URL}{WEBHOOK_PATH}")
 
 
 async def on_shutdown(bot: Bot) -> None:
@@ -64,6 +66,11 @@ def build_app() -> web.Application:
     app.router.add_get("/health", healthcheck)
     SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
+
+    async def on_app_startup(_app: web.Application) -> None:
+        await set_webhook_with_retry(bot, f"{WEBHOOK_URL}{WEBHOOK_PATH}")
+
+    app.on_startup.append(on_app_startup)
     return app
 
 

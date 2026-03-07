@@ -1,9 +1,12 @@
+import logging
+
 from aiogram import Router
 from aiogram.types import CallbackQuery, LabeledPrice, PreCheckoutQuery, Message
 from keyboards.menus import shop_kb, premium_tiers_kb, message_packs_kb, back_to_menu_kb
 from services.user_service import record_purchase
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 SHOP_TEXT = (
     "💎 <b>Магазин</b>\n\n"
@@ -79,25 +82,32 @@ async def pre_checkout(query: PreCheckoutQuery) -> None:
 
 @router.message(lambda m: m.successful_payment is not None)
 async def successful_payment(message: Message) -> None:
-    payload = message.successful_payment.invoice_payload
-    parts = payload.split(":")
-    kind = parts[1]
-    stars = int(parts[3])
-    tg_id = message.from_user.id
+    try:
+        payload = message.successful_payment.invoice_payload
+        parts = payload.split(":")
+        kind = parts[1]
+        stars = int(parts[3])
+        tg_id = message.from_user.id
 
-    if kind == "premium":
-        tier = parts[2]
-        messages_added = PREMIUM_TIER_MESSAGES.get(tier, 0)
-        await record_purchase(tg_id, f"premium_{tier}", messages_added, stars)
+        if kind == "premium":
+            tier = parts[2]
+            messages_added = PREMIUM_TIER_MESSAGES.get(tier, 0)
+            await record_purchase(tg_id, f"premium_{tier}", messages_added, stars)
+            await message.answer(
+                f"⭐ Premium активирован!\n+{messages_added} сообщений добавлено на баланс.",
+                reply_markup=back_to_menu_kb(),
+            )
+        else:
+            amount = int(parts[2])
+            messages_added = amount * 2
+            await record_purchase(tg_id, f"pack_{amount}", messages_added, stars)
+            await message.answer(
+                f"✉️ Готово! +{messages_added} сообщений добавлено на баланс.",
+                reply_markup=back_to_menu_kb(),
+            )
+    except Exception:
+        logger.exception("Failed to process payment: %s", message.successful_payment)
         await message.answer(
-            f"⭐ Premium активирован!\n+{messages_added} сообщений добавлено на баланс.",
-            reply_markup=back_to_menu_kb(),
-        )
-    else:
-        amount = int(parts[2])
-        messages_added = amount * 2
-        await record_purchase(tg_id, f"pack_{amount}", messages_added, stars)
-        await message.answer(
-            f"✉️ Готово! +{messages_added} сообщений добавлено на баланс.",
+            "Произошла ошибка при обработке платежа. Напиши в поддержку — мы всё решим.",
             reply_markup=back_to_menu_kb(),
         )

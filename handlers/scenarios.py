@@ -36,7 +36,6 @@ async def start_scenario(callback: CallbackQuery, state: FSMContext) -> None:
     user = await get_user(tg_id)
 
     # Check premium lock
-    from services.user_service import get_all_scenarios
     scenarios = await get_all_scenarios()
     scenario = next((s for s in scenarios if s["id"] == scenario_id), None)
 
