@@ -2,7 +2,7 @@ from aiogram import Router
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from services.user_service import get_all_scenarios, get_user, create_conversation
-from keyboards.menus import scenarios_kb
+from keyboards.menus import scenarios_kb, chat_reply_kb
 from handlers.chat import ChatState
 
 router = Router()
@@ -65,10 +65,11 @@ async def start_scenario(callback: CallbackQuery, state: FSMContext) -> None:
         scenario_system_prompt=scenario["system_prompt"],
     )
 
-    await callback.message.edit_text(
+    await callback.message.answer(
         f"{scenario['emoji']} <b>Диалог с {scenario['name']}</b>\n\n"
         f"{scenario['description']}\n\n"
         f"Напиши что-нибудь — {scenario['name']} ждёт тебя...",
         parse_mode="HTML",
+        reply_markup=chat_reply_kb(),
     )
     await callback.answer()

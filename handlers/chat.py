@@ -6,13 +6,28 @@ from services.groq_client import chat_completion
 from services.user_service import (
     deduct_message, save_message, get_conversation_history
 )
-from keyboards.menus import chat_kb, main_menu_kb
+from keyboards.menus import chat_kb, main_menu_kb, chat_reply_kb, remove_reply_kb
 
 router = Router()
 
 
 class ChatState(StatesGroup):
     in_chat = State()
+
+
+@router.message(ChatState.in_chat, F.text == "🔄 Изменить режим")
+async def change_mode(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await message.answer("Выбери нового персонажа 👇", reply_markup=remove_reply_kb())
+    from services.user_service import get_all_scenarios, get_user
+    from keyboards.menus import scenarios_kb
+    user = await get_user(message.from_user.id)
+    scenarios = await get_all_scenarios()
+    await message.answer(
+        "💫 <b>Сценарии</b>\n\nВыбери персонажа, с которым хочешь поговорить.\n🔒 — доступно только с Premium.",
+        reply_markup=scenarios_kb(scenarios, is_premium=user["is_premium"]),
+        parse_mode="HTML",
+    )
 
 
 @router.message(ChatState.in_chat, F.text)
@@ -61,6 +76,7 @@ async def handle_chat_message(message: Message, state: FSMContext) -> None:
 @router.callback_query(lambda c: c.data.startswith("chat:end:"))
 async def end_chat(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
+    await callback.message.answer("👋", reply_markup=remove_reply_kb())
     await callback.message.edit_text(
         "Диалог завершён 👋\n\nВозвращайся, когда захочешь поговорить.",
         reply_markup=main_menu_kb(),

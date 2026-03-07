@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
@@ -81,3 +81,14 @@ def chat_kb(conversation_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="🚪 Завершить диалог", callback_data=f"chat:end:{conversation_id}"))
     return builder.as_markup()
+
+
+def chat_reply_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="🔄 Изменить режим")]],
+        resize_keyboard=True,
+    )
+
+
+def remove_reply_kb() -> ReplyKeyboardRemove:
+    return ReplyKeyboardRemove()
