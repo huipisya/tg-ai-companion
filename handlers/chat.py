@@ -48,7 +48,7 @@ async def handle_suggestion(callback: CallbackQuery, state: FSMContext) -> None:
         parse_mode="HTML",
     )
     await callback.answer()
-    await _process_chat(callback.message, state, text)
+    await _process_chat(callback.message, state, text, tg_id=callback.from_user.id)
 
 
 @router.message(ChatState.in_chat, F.text)
@@ -56,8 +56,8 @@ async def handle_chat_message(message: Message, state: FSMContext) -> None:
     await _process_chat(message, state, message.text)
 
 
-async def _process_chat(message: Message, state: FSMContext, text: str) -> None:
-    tg_id = message.from_user.id
+async def _process_chat(message: Message, state: FSMContext, text: str, tg_id: int | None = None) -> None:
+    tg_id = tg_id or message.from_user.id
     data = await state.get_data()
 
     conversation_id = data["conversation_id"]
