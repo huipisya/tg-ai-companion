@@ -41,14 +41,14 @@ async def handle_suggestion(callback: CallbackQuery, state: FSMContext) -> None:
         return
 
     text = suggestions[suggestion_index]
+    # Remove suggestion buttons and show chosen text in the same message
+    await callback.message.edit_text(
+        callback.message.text + f"\n\n<i>Ты: {text}</i>",
+        reply_markup=None,
+        parse_mode="HTML",
+    )
     await callback.answer()
-    # Send as user message
-    await callback.message.answer(text)
-    # Process it as a regular chat message
-    fake = callback.message
-    fake.text = text
-    fake.from_user = callback.from_user
-    await _process_chat(fake, state, text)
+    await _process_chat(callback.message, state, text)
 
 
 @router.message(ChatState.in_chat, F.text)
