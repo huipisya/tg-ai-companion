@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -9,6 +11,7 @@ from services.user_service import (
 from keyboards.menus import chat_kb, main_menu_kb
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 
 class ChatState(StatesGroup):
@@ -53,7 +56,8 @@ async def handle_chat_message(message: Message, state: FSMContext) -> None:
             history=history,
             user_message=message.text,
         )
-    except Exception:
+    except Exception as e:
+        logger.exception("chat_completion failed for user %s: %s", tg_id, e)
         await thinking.delete()
         await message.answer("Что-то пошло не так. Попробуй ещё раз.")
         return

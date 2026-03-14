@@ -1,6 +1,9 @@
+import logging
+
 from groq import AsyncGroq
 from config import GROQ_API_KEY, GROQ_MODEL
 
+logger = logging.getLogger(__name__)
 _client: AsyncGroq | None = None
 
 
@@ -21,10 +24,15 @@ async def chat_completion(
     messages.extend(history)
     messages.append({"role": "user", "content": user_message})
 
-    response = await get_client().chat.completions.create(
-        model=GROQ_MODEL,
-        messages=messages,
-        max_tokens=max_tokens,
-        temperature=0.85,
-    )
-    return response.choices[0].message.content
+    logger.info("Sending request to Groq: model=%s, messages=%d", GROQ_MODEL, len(messages))
+    try:
+        response = await get_client().chat.completions.create(
+            model=GROQ_MODEL,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=0.85,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.exception("Groq API error: %s", e)
+        raise

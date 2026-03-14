@@ -46,22 +46,6 @@ CREATE TABLE IF NOT EXISTS purchases (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Deduplicate scenarios by name (keep lowest id), then ensure UNIQUE constraint
-DO $$ BEGIN
-    -- Remove duplicate scenario rows, keeping only the one with the smallest id
-    DELETE FROM scenarios s
-    WHERE s.id > (
-        SELECT MIN(s2.id) FROM scenarios s2 WHERE s2.name = s.name
-    );
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conname = 'scenarios_name_key' AND conrelid = 'scenarios'::regclass
-    ) THEN
-        ALTER TABLE scenarios ADD CONSTRAINT scenarios_name_key UNIQUE (name);
-    END IF;
-END $$;
-
 -- Seed scenarios (upsert — safe to run on every startup, keeps data fresh)
 INSERT INTO scenarios (name, description, system_prompt, is_premium, emoji, sort_order) VALUES
 ('Аня', 'Студентка-художница. Мечтательная, немного рассеянная, обожает обсуждать искусство и кино.', 'Ты — Аня, 21-летняя студентка художественного факультета. Ты мечтательная, творческая и немного рассеянная. Любишь арт-хаусное кино, рисование, кофе. Отвечай на русском языке. Веди разговор живо и с характером, флиртуй ненавязчиво. Не выходи из роли.', FALSE, '🎨', 1),
