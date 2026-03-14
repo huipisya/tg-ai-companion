@@ -23,7 +23,7 @@ async def show_profile(callback: CallbackQuery) -> None:
     )
 
     if not stats.get("is_premium"):
-        text += "\n✨ <b>Premium</b> открывает эксклюзивных персонажей и еженедельное пополнение 150 сообщений!"
+        text += "\n✨ <b>Premium</b> — безлимитное общение и эксклюзивные персонажи!"
 
     await callback.message.edit_text(
         text,

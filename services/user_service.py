@@ -45,13 +45,14 @@ async def get_user(tg_id: int) -> asyncpg.Record | None:
 
 
 async def deduct_message(tg_id: int) -> bool:
-    """Returns False if balance is 0."""
+    """Returns False if balance is 0. Premium users are never blocked."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.fetchrow(
             """
-            UPDATE users SET balance = balance - 1, messages_sent = messages_sent + 1
-            WHERE tg_id = $1 AND balance > 0
+            UPDATE users SET messages_sent = messages_sent + 1,
+                balance = CASE WHEN is_premium THEN balance ELSE balance - 1 END
+            WHERE tg_id = $1 AND (is_premium OR balance > 0)
             RETURNING balance
             """,
             tg_id,

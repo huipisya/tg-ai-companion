@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 SHOP_TEXT = (
     "💎 <b>Магазин</b>\n\n"
     "Расширь свои возможности:\n\n"
-    "⭐ <b>Premium-подписка</b> — эксклюзивные персонажи и еженедельное пополнение сообщений.\n\n"
-    "✉️ <b>Пакеты сообщений</b> — если нужно ещё, мы поможем."
+    "⭐ <b>Premium-подписка</b> — безлимитное общение и доступ к эксклюзивным персонажам.\n\n"
+    "✉️ <b>Пакеты сообщений</b> — дополнительные сообщения без подписки."
 )
 
 PREMIUM_TIER_MESSAGES = {
@@ -32,7 +32,7 @@ async def show_shop(callback: CallbackQuery) -> None:
 @router.callback_query(lambda c: c.data == "shop:premium")
 async def show_premium_tiers(callback: CallbackQuery) -> None:
     await callback.message.edit_text(
-        "⭐ <b>Premium-подписка</b>\n\nВыбери срок подписки:",
+        "⭐ <b>Premium-подписка</b>\n\nБезлимитное общение + эксклюзивные персонажи.\nВыбери срок:",
         reply_markup=premium_tiers_kb(),
         parse_mode="HTML",
     )
