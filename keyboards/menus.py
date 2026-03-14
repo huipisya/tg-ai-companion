@@ -83,6 +83,14 @@ def chat_kb(conversation_id: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def chat_suggestions_kb(conversation_id: int, suggestions: list[str]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for i, text in enumerate(suggestions[:3]):
+        builder.row(InlineKeyboardButton(text=text, callback_data=f"chat:suggest:{conversation_id}:{i}"))
+    builder.row(InlineKeyboardButton(text="🚪 Завершить диалог", callback_data=f"chat:end:{conversation_id}"))
+    return builder.as_markup()
+
+
 def chat_reply_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text="🏠 Главное меню")]],

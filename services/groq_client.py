@@ -1,3 +1,4 @@
+import json
 import logging
 
 from groq import AsyncGroq
@@ -36,3 +37,35 @@ async def chat_completion(
     except Exception as e:
         logger.exception("Groq API error: %s", e)
         raise
+
+
+async def generate_suggestions(
+    character_name: str,
+    history: list[dict],
+    last_reply: str,
+) -> list[str]:
+    """Generate 3 short reply suggestions from the user's perspective."""
+    prompt = (
+        f"Ты помогаешь пользователю общаться с персонажем по имени {character_name}. "
+        f"Придумай ровно 3 коротких варианта ответа от лица пользователя (не персонажа) — "
+        f"разные по тону: один серьёзный, один игривый, один интригующий. "
+        f"Каждый вариант — не более 6 слов. "
+        f"Верни только JSON-массив строк, без пояснений. Пример: [\"текст1\", \"текст2\", \"текст3\"]"
+    )
+    messages = [
+        {"role": "system", "content": prompt},
+        *history[-6:],
+        {"role": "assistant", "content": last_reply},
+        {"role": "user", "content": "Предложи 3 варианта ответа пользователя."},
+    ]
+    try:
+        response = await get_client().chat.completions.create(
+            model=GROQ_MODEL,
+            messages=messages,
+            max_tokens=100,
+            temperature=0.9,
+        )
+        raw = response.choices[0].message.content.strip()
+        return json.loads(raw)
+    except Exception:
+        return []
