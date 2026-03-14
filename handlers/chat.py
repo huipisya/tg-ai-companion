@@ -16,7 +16,7 @@ class ChatState(StatesGroup):
 
 
 @router.message(ChatState.in_chat, F.text == "🏠 Главное меню")
-async def go_to_main_menu(message: Message, state: FSMContext) -> None:
+async def chat_main_menu(message: Message, state: FSMContext) -> None:
     await state.clear()
     from handlers.start import WELCOME_TEXT
     await message.answer(WELCOME_TEXT, reply_markup=main_menu_kb())
@@ -29,7 +29,6 @@ async def handle_chat_message(message: Message, state: FSMContext) -> None:
 
     conversation_id = data["conversation_id"]
     system_prompt = data["scenario_system_prompt"]
-    scenario_name = data["scenario_name"]
 
     has_balance = await deduct_message(tg_id)
     if not has_balance:
@@ -44,7 +43,6 @@ async def handle_chat_message(message: Message, state: FSMContext) -> None:
     await save_message(conversation_id, "user", message.text)
 
     history = await get_conversation_history(conversation_id, limit=20)
-    # Remove last message since we pass it separately
     history = history[:-1] if history else []
 
     thinking = await message.answer("...")
