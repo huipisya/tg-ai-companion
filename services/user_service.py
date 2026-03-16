@@ -141,6 +141,32 @@ async def increment_conversation_message_count(conversation_id: int) -> int:
         return row["message_count"] if row else 0
 
 
+async def get_existing_conversation(tg_id: int, scenario_id: int) -> asyncpg.Record | None:
+    """Returns the most recent conversation for this user+scenario, or None."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow(
+            """
+            SELECT c.id, c.message_count FROM conversations c
+            JOIN users u ON c.user_id = u.id
+            WHERE u.tg_id = $1 AND c.scenario_id = $2
+            ORDER BY c.created_at DESC LIMIT 1
+            """,
+            tg_id, scenario_id,
+        )
+
+
+async def get_last_assistant_message(conversation_id: int) -> str | None:
+    """Returns the last assistant message content, or None."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT content FROM messages WHERE conversation_id = $1 AND role = 'assistant' ORDER BY created_at DESC LIMIT 1",
+            conversation_id,
+        )
+        return row["content"] if row else None
+
+
 async def get_conversation_history(conversation_id: int, limit: int = 20) -> list[dict]:
     pool = await get_pool()
     async with pool.acquire() as conn:

@@ -1,7 +1,10 @@
 from aiogram import Router
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
-from services.user_service import get_all_scenarios, get_user, create_conversation
+from services.user_service import (
+    get_all_scenarios, get_user, create_conversation,
+    get_existing_conversation, get_last_assistant_message,
+)
 from keyboards.menus import scenarios_kb, chat_reply_kb
 from handlers.chat import ChatState
 
@@ -14,14 +17,8 @@ async def show_scenarios(callback: CallbackQuery) -> None:
     user = await get_user(tg_id)
     scenarios = await get_all_scenarios()
 
-    text = (
-        "💫 <b>Сценарии</b>\n\n"
-        "Выбери персонажа, с которым хочешь поговорить.\n"
-        "🔒 — доступно только с Premium."
-    )
-
     await callback.message.edit_text(
-        text,
+        "💫 <b>Сценарии</b>\n\nВыбери персонажа, с которым хочешь поговорить.\n🔒 — доступно только с Premium.",
         reply_markup=scenarios_kb(scenarios, is_premium=user["is_premium"]),
         parse_mode="HTML",
     )
@@ -34,8 +31,6 @@ async def start_scenario(callback: CallbackQuery, state: FSMContext) -> None:
     tg_id = callback.from_user.id
 
     user = await get_user(tg_id)
-
-    # Check premium lock
     scenarios = await get_all_scenarios()
     scenario = next((s for s in scenarios if s["id"] == scenario_id), None)
 
@@ -50,27 +45,94 @@ async def start_scenario(callback: CallbackQuery, state: FSMContext) -> None:
         )
         return
 
-    if user["balance"] <= 0:
+    if not user["is_premium"] and user["balance"] <= 0:
         await callback.answer(
             "У тебя закончились сообщения 😔\nПополни баланс в Магазине.",
             show_alert=True,
         )
         return
 
-    conv_id = await create_conversation(tg_id, scenario_id)
+    # If this scenario has a story mode — show choice
+    if scenario["premium_gate_at"]:
+        existing = await get_existing_conversation(tg_id, scenario_id)
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📖 История" + (" (продолжить)" if existing else " (начать)"),
+                    callback_data=f"scenario:mode:story:{scenario_id}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="💬 Диалог",
+                    callback_data=f"scenario:mode:chat:{scenario_id}",
+                ),
+            ],
+        ])
+        await callback.message.edit_text(
+            f"{scenario['emoji']} <b>{scenario['name']}</b>\n\n"
+            f"{scenario['description']}\n\n"
+            "Выбери режим:",
+            reply_markup=kb,
+            parse_mode="HTML",
+        )
+        await callback.answer()
+        return
+
+    await _launch_chat(callback, state, scenario, tg_id, story_mode=False)
+
+
+@router.callback_query(lambda c: c.data.startswith("scenario:mode:"))
+async def start_scenario_mode(callback: CallbackQuery, state: FSMContext) -> None:
+    parts = callback.data.split(":")
+    mode = parts[2]       # "story" or "chat"
+    scenario_id = int(parts[3])
+    tg_id = callback.from_user.id
+
+    scenarios = await get_all_scenarios()
+    scenario = next((s for s in scenarios if s["id"] == scenario_id), None)
+    if not scenario:
+        await callback.answer("Сценарий не найден.", show_alert=True)
+        return
+
+    await _launch_chat(callback, state, scenario, tg_id, story_mode=(mode == "story"))
+
+
+async def _launch_chat(callback: CallbackQuery, state: FSMContext, scenario, tg_id: int, story_mode: bool) -> None:
+    existing = await get_existing_conversation(tg_id, scenario["id"]) if story_mode else None
+
+    if existing:
+        conv_id = existing["id"]
+        msg_count = existing["message_count"]
+    else:
+        conv_id = await create_conversation(tg_id, scenario["id"])
+        msg_count = 0
+
+    gate = scenario["premium_gate_at"] if story_mode else None
+
     await state.set_state(ChatState.in_chat)
     await state.update_data(
         conversation_id=conv_id,
         scenario_name=scenario["name"],
         scenario_system_prompt=scenario["system_prompt"],
-        premium_gate_at=scenario["premium_gate_at"],
+        premium_gate_at=gate,
+        msg_count=msg_count,
     )
 
-    await callback.message.answer(
-        f"{scenario['emoji']} <b>Диалог с {scenario['name']}</b>\n\n"
-        f"{scenario['description']}\n\n"
-        f"Напиши что-нибудь — {scenario['name']} ждёт тебя...",
-        parse_mode="HTML",
-        reply_markup=chat_reply_kb(),
-    )
+    if existing and story_mode:
+        last_msg = await get_last_assistant_message(conv_id)
+        intro = (
+            f"{scenario['emoji']} <b>Продолжаем с {scenario['name']}</b>\n\n"
+            f"Сообщение {msg_count} из истории\n\n"
+            f"<i>Последнее сообщение:</i>\n{last_msg}" if last_msg else
+            f"{scenario['emoji']} <b>Продолжаем с {scenario['name']}</b>"
+        )
+    else:
+        intro = (
+            f"{scenario['emoji']} <b>{'История' if story_mode else 'Диалог'} с {scenario['name']}</b>\n\n"
+            f"{scenario['description']}\n\n"
+            f"Напиши что-нибудь — {scenario['name']} ждёт тебя..."
+        )
+
+    await callback.message.answer(intro, parse_mode="HTML", reply_markup=chat_reply_kb())
     await callback.answer()
