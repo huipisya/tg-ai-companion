@@ -6,7 +6,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from services.groq_client import chat_completion, generate_suggestions
 from services.user_service import (
-    deduct_message, save_message, get_conversation_history
+    deduct_message, save_message, get_conversation_history,
+    increment_conversation_message_count, get_user,
 )
 from keyboards.menus import chat_kb, chat_suggestions_kb, main_menu_kb
 
@@ -63,7 +64,21 @@ async def _process_chat(message: Message, state: FSMContext, text: str, tg_id: i
     conversation_id = data["conversation_id"]
     system_prompt = data["scenario_system_prompt"]
     scenario_name = data["scenario_name"]
+    premium_gate_at = data.get("premium_gate_at")
     msg_count = data.get("msg_count", 0) + 1
+
+    # Check premium gate before spending balance
+    if premium_gate_at and msg_count >= premium_gate_at:
+        user = await get_user(tg_id)
+        if not user or not user["is_premium"]:
+            await message.answer(
+                "🔒 Дальше — только для Premium\n\n"
+                "Это место, куда попадают только свои. "
+                "Оформи подписку в Магазине, чтобы продолжить историю.",
+                reply_markup=main_menu_kb(),
+            )
+            await state.clear()
+            return
 
     has_balance = await deduct_message(tg_id)
     if not has_balance:
@@ -76,6 +91,7 @@ async def _process_chat(message: Message, state: FSMContext, text: str, tg_id: i
         return
 
     await save_message(conversation_id, "user", text)
+    await increment_conversation_message_count(conversation_id)
 
     history = await get_conversation_history(conversation_id, limit=20)
     history = history[:-1] if history else []

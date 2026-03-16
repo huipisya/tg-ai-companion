@@ -63,6 +63,7 @@ async def start_scenario(callback: CallbackQuery, state: FSMContext) -> None:
         conversation_id=conv_id,
         scenario_name=scenario["name"],
         scenario_system_prompt=scenario["system_prompt"],
+        premium_gate_at=scenario["premium_gate_at"],
     )
 
     await callback.message.answer(

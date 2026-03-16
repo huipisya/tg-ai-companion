@@ -130,6 +130,17 @@ async def create_conversation(tg_id: int, scenario_id: int) -> int:
         return conv["id"]
 
 
+async def increment_conversation_message_count(conversation_id: int) -> int:
+    """Increments message_count and returns the new value."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "UPDATE conversations SET message_count = message_count + 1 WHERE id = $1 RETURNING message_count",
+            conversation_id,
+        )
+        return row["message_count"] if row else 0
+
+
 async def get_conversation_history(conversation_id: int, limit: int = 20) -> list[dict]:
     pool = await get_pool()
     async with pool.acquire() as conn:
