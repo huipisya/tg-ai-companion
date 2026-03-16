@@ -39,6 +39,51 @@ async def chat_completion(
         raise
 
 
+async def chat_completion_story(
+    system_prompt: str,
+    history: list[dict],
+    user_message: str,
+    max_tokens: int = 600,
+) -> tuple[str | None, str]:
+    """
+    Story mode: returns (narrative, reply).
+    narrative is an atmospheric description from the narrator (or None).
+    reply is the character's message.
+    """
+    story_system = (
+        system_prompt
+        + "\n\nВАЖНО: Отвечай строго в формате JSON без markdown-блоков:\n"
+        '{\"narrative\": \"...\", \"reply\": \"...\"}\n'
+        "narrative — атмосферное описание от нарратора (от второго лица, настоящее время, 1-3 предложения). "
+        "Используй только когда происходит смена места или важный момент. В остальных случаях — пустая строка \"\".\n"
+        "reply — твой ответ как персонажа."
+    )
+    messages = [{"role": "system", "content": story_system}]
+    messages.extend(history)
+    messages.append({"role": "user", "content": user_message})
+
+    try:
+        response = await get_client().chat.completions.create(
+            model=GROQ_MODEL,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=0.85,
+        )
+        raw = response.choices[0].message.content.strip()
+        # Strip markdown code blocks if model wraps in ```json
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        data = json.loads(raw)
+        narrative = data.get("narrative", "").strip() or None
+        reply = data.get("reply", "").strip()
+        return narrative, reply
+    except Exception as e:
+        logger.exception("Groq story API error: %s", e)
+        raise
+
+
 async def generate_suggestions(
     character_name: str,
     history: list[dict],

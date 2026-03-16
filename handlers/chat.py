@@ -4,7 +4,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from services.groq_client import chat_completion, generate_suggestions
+from services.groq_client import chat_completion, chat_completion_story, generate_suggestions
 from services.user_service import (
     deduct_message, save_message, get_conversation_history,
     increment_conversation_message_count, get_user,
@@ -99,11 +99,19 @@ async def _process_chat(message: Message, state: FSMContext, text: str, tg_id: i
     thinking = await message.answer("...")
 
     try:
-        reply = await chat_completion(
-            system_prompt=system_prompt,
-            history=history,
-            user_message=text,
-        )
+        if premium_gate_at:
+            narrative, reply = await chat_completion_story(
+                system_prompt=system_prompt,
+                history=history,
+                user_message=text,
+            )
+        else:
+            narrative = None
+            reply = await chat_completion(
+                system_prompt=system_prompt,
+                history=history,
+                user_message=text,
+            )
     except Exception as e:
         logger.exception("chat_completion failed for user %s: %s", tg_id, e)
         await thinking.delete()
@@ -112,6 +120,9 @@ async def _process_chat(message: Message, state: FSMContext, text: str, tg_id: i
 
     await save_message(conversation_id, "assistant", reply)
     await thinking.delete()
+
+    if narrative:
+        await message.answer(f"<i>{narrative}</i>", parse_mode="HTML")
 
     show_suggestions = (msg_count % SUGGESTIONS_EVERY == 0)
 
