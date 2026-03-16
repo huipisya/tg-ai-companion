@@ -4,7 +4,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from services.groq_client import chat_completion, chat_completion_story, generate_suggestions
+from services.groq_client import chat_completion, chat_completion_story
 from services.user_service import (
     deduct_message, save_message, get_conversation_history,
     increment_conversation_message_count, get_user,
@@ -13,8 +13,6 @@ from keyboards.menus import chat_kb, chat_suggestions_kb, main_menu_kb
 
 router = Router()
 logger = logging.getLogger(__name__)
-
-SUGGESTIONS_EVERY = 10  # show suggestion buttons every N messages
 
 
 class ChatState(StatesGroup):
@@ -30,7 +28,6 @@ async def chat_main_menu(message: Message, state: FSMContext) -> None:
 
 @router.callback_query(lambda c: c.data.startswith("chat:suggest:"))
 async def handle_suggestion(callback: CallbackQuery, state: FSMContext) -> None:
-    # data: chat:suggest:{conversation_id}:{index}
     parts = callback.data.split(":")
     suggestion_index = int(parts[3])
 
@@ -42,7 +39,6 @@ async def handle_suggestion(callback: CallbackQuery, state: FSMContext) -> None:
         return
 
     text = suggestions[suggestion_index]
-    # Remove suggestion buttons and show chosen text in the same message
     await callback.message.edit_text(
         callback.message.text + f"\n\n<i>Ты: {text}</i>",
         reply_markup=None,
@@ -63,7 +59,6 @@ async def _process_chat(message: Message, state: FSMContext, text: str, tg_id: i
 
     conversation_id = data["conversation_id"]
     system_prompt = data["scenario_system_prompt"]
-    scenario_name = data["scenario_name"]
     premium_gate_at = data.get("premium_gate_at")
     msg_count = data.get("msg_count", 0) + 1
 
@@ -100,13 +95,14 @@ async def _process_chat(message: Message, state: FSMContext, text: str, tg_id: i
 
     try:
         if premium_gate_at:
-            narrative, reply = await chat_completion_story(
+            narrative, reply, suggestions = await chat_completion_story(
                 system_prompt=system_prompt,
                 history=history,
                 user_message=text,
             )
         else:
             narrative = None
+            suggestions = []
             reply = await chat_completion(
                 system_prompt=system_prompt,
                 history=history,
@@ -124,17 +120,12 @@ async def _process_chat(message: Message, state: FSMContext, text: str, tg_id: i
     if narrative:
         await message.answer(f"<i>{narrative}</i>", parse_mode="HTML")
 
-    show_suggestions = (msg_count % SUGGESTIONS_EVERY == 0)
-
-    if show_suggestions:
-        suggestions = await generate_suggestions(scenario_name, history, reply)
-        if suggestions:
-            await state.update_data(msg_count=msg_count, suggestions=suggestions)
-            await message.answer(reply, reply_markup=chat_suggestions_kb(conversation_id, suggestions))
-            return
-
-    await state.update_data(msg_count=msg_count)
-    await message.answer(reply, reply_markup=chat_kb(conversation_id))
+    if suggestions:
+        await state.update_data(msg_count=msg_count, suggestions=suggestions)
+        await message.answer(reply, reply_markup=chat_suggestions_kb(conversation_id, suggestions))
+    else:
+        await state.update_data(msg_count=msg_count)
+        await message.answer(reply, reply_markup=chat_kb(conversation_id))
 
 
 @router.callback_query(lambda c: c.data.startswith("chat:end:"))

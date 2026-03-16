@@ -43,20 +43,23 @@ async def chat_completion_story(
     system_prompt: str,
     history: list[dict],
     user_message: str,
-    max_tokens: int = 600,
-) -> tuple[str | None, str]:
+    max_tokens: int = 700,
+) -> tuple[str | None, str, list[str]]:
     """
-    Story mode: returns (narrative, reply).
-    narrative is an atmospheric description from the narrator (or None).
-    reply is the character's message.
+    Story mode: returns (narrative, reply, suggestions).
+    narrative — atmospheric narrator text (or None).
+    reply — character message.
+    suggestions — 2-3 short inline reply options (or []).
     """
     story_system = (
         system_prompt
-        + "\n\nВАЖНО: Отвечай строго в формате JSON без markdown-блоков:\n"
-        '{\"narrative\": \"...\", \"reply\": \"...\"}\n'
-        "narrative — атмосферное описание от нарратора (от второго лица, настоящее время, 1-3 предложения). "
-        "Используй только когда происходит смена места или важный момент. В остальных случаях — пустая строка \"\".\n"
-        "reply — твой ответ как персонажа."
+        + '\n\nВАЖНО: Отвечай строго в формате JSON без markdown-блоков:\n'
+        '{"narrative": "...", "reply": "...", "suggestions": ["...", "..."]}\n'
+        'narrative — атмосферное описание от нарратора (от второго лица, настоящее время, 1-3 предложения). '
+        'Используй только когда происходит смена места или важный момент. В остальных случаях — пустая строка "".\n'
+        'reply — твой ответ как персонажа.\n'
+        'suggestions — массив из 2-3 коротких вариантов ответа от лица пользователя (не более 5 слов каждый). '
+        'Добавляй только когда задаёшь вопрос или предлагаешь выбор. В остальных случаях — пустой массив [].'
     )
     messages = [{"role": "system", "content": story_system}]
     messages.extend(history)
@@ -70,7 +73,6 @@ async def chat_completion_story(
             temperature=0.85,
         )
         raw = response.choices[0].message.content.strip()
-        # Strip markdown code blocks if model wraps in ```json
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
@@ -78,7 +80,10 @@ async def chat_completion_story(
         data = json.loads(raw)
         narrative = data.get("narrative", "").strip() or None
         reply = data.get("reply", "").strip()
-        return narrative, reply
+        suggestions = data.get("suggestions", [])
+        if not isinstance(suggestions, list):
+            suggestions = []
+        return narrative, reply, suggestions
     except Exception as e:
         logger.exception("Groq story API error: %s", e)
         raise
