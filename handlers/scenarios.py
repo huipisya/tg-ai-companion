@@ -98,6 +98,37 @@ async def start_scenario_mode(callback: CallbackQuery, state: FSMContext) -> Non
     await _launch_chat(callback, state, scenario, tg_id, story_mode=(mode == "story"))
 
 
+STORY_INTROS = {
+    "Настикс": (
+        "Небольшое кафе в центре города. Воскресный день, почти все места заняты. "
+        "Ты берёшь кофе и оглядываешься — свободный стул есть только за столиком у окна. "
+        "Напротив сидит девушка с книгой и наушниками. Явно не хочет компании. "
+        "Ты всё равно садишься."
+    ),
+    "Вика": (
+        "Арбат, солнечный полдень. Ты идёшь мимо художников и уличных музыкантов. "
+        "У витрины стоит красивая блондинка — смотрит в телефон с явно раздражённым видом. "
+        "Ты решаешь пройти мимо. Но в этот момент она поднимает взгляд — прямо на тебя — "
+        "и делает шаг навстречу."
+    ),
+}
+
+
+async def send_story_intro(target, scenario, story_mode: bool) -> None:
+    """Send story intro messages. target must have .answer() method."""
+    header = (
+        f"{scenario['emoji']} <b>{'История' if story_mode else 'Диалог'} с {scenario['name']}</b>\n\n"
+        f"{scenario['description']}"
+    )
+    await target.answer(header, parse_mode="HTML")
+
+    scene_intro = STORY_INTROS.get(scenario["name"]) if story_mode else None
+    if scene_intro:
+        await target.answer(f"<i>{scene_intro}</i>", parse_mode="HTML")
+    else:
+        await target.answer(f"Напиши что-нибудь — {scenario['name']} ждёт тебя...")
+
+
 async def _launch_chat(callback: CallbackQuery, state: FSMContext, scenario, tg_id: int, story_mode: bool) -> None:
     existing = await get_existing_conversation(tg_id, scenario["id"]) if story_mode else None
 
@@ -119,21 +150,6 @@ async def _launch_chat(callback: CallbackQuery, state: FSMContext, scenario, tg_
         msg_count=msg_count,
     )
 
-    STORY_INTROS = {
-        "Настикс": (
-            "Небольшое кафе в центре города. Воскресный день, почти все места заняты. "
-            "Ты берёшь кофе и оглядываешься — свободный стул есть только за столиком у окна. "
-            "Напротив сидит девушка с книгой и наушниками. Явно не хочет компании. "
-            "Ты всё равно садишься."
-        ),
-        "Вика": (
-            "Арбат, солнечный полдень. Ты идёшь мимо художников и уличных музыкантов. "
-            "У витрины стоит красивая блондинка — смотрит в телефон с явно раздражённым видом. "
-            "Ты решаешь пройти мимо. Но в этот момент она поднимает взгляд — прямо на тебя — "
-            "и делает шаг навстречу."
-        ),
-    }
-
     if existing and story_mode:
         last_msg = await get_last_assistant_message(conv_id)
         intro = (
@@ -144,19 +160,7 @@ async def _launch_chat(callback: CallbackQuery, state: FSMContext, scenario, tg_
         )
         await callback.message.answer(intro, parse_mode="HTML", reply_markup=chat_reply_kb())
     else:
-        header = (
-            f"{scenario['emoji']} <b>{'История' if story_mode else 'Диалог'} с {scenario['name']}</b>\n\n"
-            f"{scenario['description']}"
-        )
-        await callback.message.answer(header, parse_mode="HTML", reply_markup=chat_reply_kb())
+        await callback.message.answer("👇", reply_markup=chat_reply_kb())
+        await send_story_intro(callback.message, scenario, story_mode)
 
-        scene_intro = STORY_INTROS.get(scenario["name"]) if story_mode else None
-        if scene_intro:
-            await callback.message.answer(f"<i>{scene_intro}</i>", parse_mode="HTML")
-        else:
-            await callback.message.answer(f"Напиши что-нибудь — {scenario['name']} ждёт тебя...")
-        await callback.answer()
-        return
-
-    await callback.answer()
     await callback.answer()

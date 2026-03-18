@@ -145,12 +145,23 @@ async def restart_chat(callback: CallbackQuery, state: FSMContext) -> None:
                 scenario_id = row["scenario_id"]
         await delete_conversation(old_conv_id)
 
-    if scenario_id:
-        new_conv_id = await create_conversation(tg_id, scenario_id)
-        await state.update_data(conversation_id=new_conv_id, msg_count=0, suggestions=[])
+    if not scenario_id:
+        await callback.answer("Не удалось перезапустить.", show_alert=True)
+        return
+
+    from services.user_service import get_all_scenarios
+    new_conv_id = await create_conversation(tg_id, scenario_id)
+    await state.update_data(conversation_id=new_conv_id, msg_count=0, suggestions=[])
+
+    scenarios = await get_all_scenarios()
+    scenario = next((s for s in scenarios if s["id"] == scenario_id), None)
 
     await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer("История начата заново. Напиши что-нибудь 👇")
+
+    from handlers.scenarios import send_story_intro
+    if scenario:
+        await send_story_intro(callback.message, scenario, story_mode=True)
+
     await callback.answer()
 
 
