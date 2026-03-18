@@ -119,6 +119,21 @@ async def _launch_chat(callback: CallbackQuery, state: FSMContext, scenario, tg_
         msg_count=msg_count,
     )
 
+    STORY_INTROS = {
+        "Настикс": (
+            "Небольшое кафе в центре города. Воскресный день, почти все места заняты. "
+            "Ты берёшь кофе и оглядываешься — свободный стул есть только за столиком у окна. "
+            "Напротив сидит девушка с книгой и наушниками. Явно не хочет компании. "
+            "Ты всё равно садишься."
+        ),
+        "Вика": (
+            "Арбат, солнечный полдень. Ты идёшь мимо художников и уличных музыкантов. "
+            "У витрины стоит красивая блондинка — смотрит в телефон с явно раздражённым видом. "
+            "Ты решаешь пройти мимо. Но в этот момент она поднимает взгляд — прямо на тебя — "
+            "и делает шаг навстречу."
+        ),
+    }
+
     if existing and story_mode:
         last_msg = await get_last_assistant_message(conv_id)
         intro = (
@@ -127,12 +142,21 @@ async def _launch_chat(callback: CallbackQuery, state: FSMContext, scenario, tg_
             f"<i>Последнее сообщение:</i>\n{last_msg}" if last_msg else
             f"{scenario['emoji']} <b>Продолжаем с {scenario['name']}</b>"
         )
+        await callback.message.answer(intro, parse_mode="HTML", reply_markup=chat_reply_kb())
     else:
-        intro = (
+        header = (
             f"{scenario['emoji']} <b>{'История' if story_mode else 'Диалог'} с {scenario['name']}</b>\n\n"
-            f"{scenario['description']}\n\n"
-            f"Напиши что-нибудь — {scenario['name']} ждёт тебя..."
+            f"{scenario['description']}"
         )
+        await callback.message.answer(header, parse_mode="HTML", reply_markup=chat_reply_kb())
 
-    await callback.message.answer(intro, parse_mode="HTML", reply_markup=chat_reply_kb())
+        scene_intro = STORY_INTROS.get(scenario["name"]) if story_mode else None
+        if scene_intro:
+            await callback.message.answer(f"<i>{scene_intro}</i>", parse_mode="HTML")
+        else:
+            await callback.message.answer(f"Напиши что-нибудь — {scenario['name']} ждёт тебя...")
+        await callback.answer()
+        return
+
+    await callback.answer()
     await callback.answer()
