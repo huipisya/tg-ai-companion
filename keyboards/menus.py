@@ -79,6 +79,7 @@ def message_packs_kb() -> InlineKeyboardMarkup:
 
 def chat_kb(conversation_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="🔄 Начать заново", callback_data=f"chat:restart:{conversation_id}"))
     builder.row(InlineKeyboardButton(text="🚪 Завершить диалог", callback_data=f"chat:end:{conversation_id}"))
     return builder.as_markup()
 
@@ -87,6 +88,7 @@ def chat_suggestions_kb(conversation_id: int, suggestions: list[str]) -> InlineK
     builder = InlineKeyboardBuilder()
     for i, text in enumerate(suggestions[:3]):
         builder.row(InlineKeyboardButton(text=text, callback_data=f"chat:suggest:{conversation_id}:{i}"))
+    builder.row(InlineKeyboardButton(text="🔄 Начать заново", callback_data=f"chat:restart:{conversation_id}"))
     builder.row(InlineKeyboardButton(text="🚪 Завершить диалог", callback_data=f"chat:end:{conversation_id}"))
     return builder.as_markup()
 

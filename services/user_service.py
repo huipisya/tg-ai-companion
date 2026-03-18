@@ -130,6 +130,13 @@ async def create_conversation(tg_id: int, scenario_id: int) -> int:
         return conv["id"]
 
 
+async def delete_conversation(conversation_id: int) -> None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM messages WHERE conversation_id = $1", conversation_id)
+        await conn.execute("DELETE FROM conversations WHERE id = $1", conversation_id)
+
+
 async def increment_conversation_message_count(conversation_id: int) -> int:
     """Increments message_count and returns the new value."""
     pool = await get_pool()

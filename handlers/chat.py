@@ -7,7 +7,8 @@ from aiogram.fsm.state import State, StatesGroup
 from services.groq_client import chat_completion, chat_completion_story
 from services.user_service import (
     deduct_message, save_message, get_conversation_history,
-    increment_conversation_message_count, get_user,
+    increment_conversation_message_count, get_user, delete_conversation,
+    create_conversation,
 )
 from keyboards.menus import chat_kb, chat_suggestions_kb, main_menu_kb
 
@@ -126,6 +127,31 @@ async def _process_chat(message: Message, state: FSMContext, text: str, tg_id: i
     else:
         await state.update_data(msg_count=msg_count)
         await message.answer(reply, reply_markup=chat_kb(conversation_id))
+
+
+@router.callback_query(lambda c: c.data.startswith("chat:restart:"))
+async def restart_chat(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    old_conv_id = data.get("conversation_id")
+    tg_id = callback.from_user.id
+
+    scenario_id = None
+    if old_conv_id:
+        from services.user_service import get_pool
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT scenario_id FROM conversations WHERE id = $1", old_conv_id)
+            if row:
+                scenario_id = row["scenario_id"]
+        await delete_conversation(old_conv_id)
+
+    if scenario_id:
+        new_conv_id = await create_conversation(tg_id, scenario_id)
+        await state.update_data(conversation_id=new_conv_id, msg_count=0, suggestions=[])
+
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer("История начата заново. Напиши что-нибудь 👇")
+    await callback.answer()
 
 
 @router.callback_query(lambda c: c.data.startswith("chat:end:"))
