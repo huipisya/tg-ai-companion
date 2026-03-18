@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 from groq import AsyncGroq
 from config import GROQ_API_KEY, GROQ_MODEL
@@ -67,6 +68,7 @@ async def chat_completion_story(
     messages.extend(history)
     messages.append({"role": "user", "content": user_message})
 
+    raw = ""
     try:
         response = await get_client().chat.completions.create(
             model=GROQ_MODEL,
@@ -75,10 +77,15 @@ async def chat_completion_story(
             temperature=0.85,
         )
         raw = response.choices[0].message.content.strip()
+        # strip markdown code blocks
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
+        # try to extract JSON object if there's garbage around it
+        match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if match:
+            raw = match.group(0)
         data = json.loads(raw)
         narrative = data.get("narrative", "").strip() or None
         reply = data.get("reply", "").strip()
@@ -86,6 +93,9 @@ async def chat_completion_story(
         if not isinstance(suggestions, list):
             suggestions = []
         return narrative, reply, suggestions
+    except json.JSONDecodeError:
+        logger.warning("Groq story JSON parse failed, using raw response as reply: %s", raw[:100])
+        return None, raw or "...", []
     except Exception as e:
         logger.exception("Groq story API error: %s", e)
         raise
