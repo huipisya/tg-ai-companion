@@ -18,4 +18,4 @@ FREE_MESSAGES = 10
 # Premium weekly top-up
 PREMIUM_WEEKLY_MESSAGES = 150
 
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "gemma2-9b-it"
